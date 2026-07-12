@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { chunkText } from "@/lib/chunk-text";
-import { openai, EMBEDDING_MODEL } from "@/lib/openai";
+import { getOpenAI, EMBEDDING_MODEL } from "@/lib/openai";
 
 async function extractText(buffer: Buffer, type: string): Promise<string | null> {
   if (type === "PDF") {
@@ -78,7 +78,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "No extractable text found" }, { status: 422 });
     }
 
-    const embeddingResponse = await openai.embeddings.create({
+    const embeddingResponse = await getOpenAI().embeddings.create({
       model: EMBEDDING_MODEL,
       input: chunks,
     });

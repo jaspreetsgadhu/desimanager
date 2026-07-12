@@ -2,7 +2,7 @@ export const runtime = "nodejs";
 
 import type { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { openai, EMBEDDING_MODEL, CHAT_MODEL } from "@/lib/openai";
+import { getOpenAI, EMBEDDING_MODEL, CHAT_MODEL } from "@/lib/openai";
 
 const AGENT_PERSONAS: Record<string, string> = {
   buddy:
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     return new Response("No organization found for this user", { status: 400 });
   }
 
-  const embeddingRes = await openai.embeddings.create({ model: EMBEDDING_MODEL, input: message });
+  const embeddingRes = await getOpenAI().embeddings.create({ model: EMBEDDING_MODEL, input: message });
   const queryEmbedding = embeddingRes.data[0].embedding;
 
   const { data: matches } = await supabase.rpc("match_document_chunks", {
@@ -87,7 +87,7 @@ ${contextBlock}`;
 
   let stream;
   try {
-    stream = await openai.chat.completions.create({
+    stream = await getOpenAI().chat.completions.create({
       model: CHAT_MODEL,
       messages: chatMessages,
       stream: true,
