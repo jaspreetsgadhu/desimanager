@@ -49,23 +49,38 @@ export async function POST(request: NextRequest) {
     return new Response("No organization found for this user", { status: 400 });
   }
 
-  const embeddingRes = await getOpenAI().embeddings.create({ model: EMBEDDING_MODEL, input: message });
-  const queryEmbedding = embeddingRes.data[0].embedding;
+  let relevantMatches: { document_title: string; document_category: string | null; content: string }[] =
+    [];
+  let contextBlock = "No relevant documents were found in the knowledge base for this question.";
 
-  const { data: matches } = await supabase.rpc("match_document_chunks", {
-    query_embedding: queryEmbedding,
-    match_org_id: profile.org_id,
-    match_count: 6,
-  });
+  try {
+    const embeddingRes = await getOpenAI().embeddings.create({
+      model: EMBEDDING_MODEL,
+      input: message,
+    });
+    const queryEmbedding = embeddingRes.data[0].embedding;
 
-  const relevantMatches = (matches ?? []).filter((m) => m.similarity > 0.3);
+    const { data: matches, error: rpcError } = await supabase.rpc("match_document_chunks", {
+      query_embedding: queryEmbedding,
+      match_org_id: profile.org_id,
+      match_count: 6,
+    });
 
-  const contextBlock =
-    relevantMatches.length > 0
-      ? relevantMatches
-          .map((m, i) => `[${i + 1}] Source: ${m.document_title}\n${m.content}`)
-          .join("\n\n")
-      : "No relevant documents were found in the knowledge base for this question.";
+    if (rpcError) {
+      console.error("match_document_chunks RPC error:", rpcError);
+    }
+
+    relevantMatches = (matches ?? []).filter((m) => m.similarity > 0.3);
+    if (relevantMatches.length > 0) {
+      contextBlock = relevantMatches
+        .map((m, i) => `[${i + 1}] Source: ${m.document_title}\n${m.content}`)
+        .join("\n\n");
+    }
+  } catch (err) {
+    console.error("Retrieval step failed:", err);
+    const msg = err instanceof Error ? err.message : "Unknown error during retrieval";
+    return new Response(`Retrieval failed: ${msg}`, { status: 502 });
+  }
 
   const persona = AGENT_PERSONAS[agent] ?? AGENT_PERSONAS.buddy;
   const systemPrompt = `${persona}
@@ -93,6 +108,7 @@ ${contextBlock}`;
       stream: true,
     });
   } catch (err) {
+    console.error("Chat completion failed:", err);
     const msg = err instanceof Error ? err.message : "Unknown error calling OpenAI";
     return new Response(msg, { status: 502 });
   }
@@ -105,6 +121,8 @@ ${contextBlock}`;
           const delta = chunk.choices[0]?.delta?.content;
           if (delta) controller.enqueue(encoder.encode(delta));
         }
+      } catch (err) {
+        console.error("Streaming failed:", err);
       } finally {
         controller.close();
       }
