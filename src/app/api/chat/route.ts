@@ -53,13 +53,21 @@ export async function POST(request: NextRequest) {
     [];
   let contextBlock = "No relevant documents were found in the knowledge base for this question.";
 
+  let queryEmbedding: number[];
   try {
     const embeddingRes = await getOpenAI().embeddings.create({
       model: EMBEDDING_MODEL,
       input: message,
     });
-    const queryEmbedding = embeddingRes.data[0].embedding;
+    queryEmbedding = embeddingRes.data[0].embedding;
+  } catch (err) {
+    console.error("Embeddings call failed:", err);
+    const keyLen = process.env.OPENAI_API_KEY?.length ?? 0;
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    return new Response(`Embeddings failed (OPENAI_API_KEY length=${keyLen}): ${msg}`, { status: 502 });
+  }
 
+  try {
     const { data: matches, error: rpcError } = await supabase.rpc("match_document_chunks", {
       query_embedding: queryEmbedding,
       match_org_id: profile.org_id,
@@ -77,9 +85,9 @@ export async function POST(request: NextRequest) {
         .join("\n\n");
     }
   } catch (err) {
-    console.error("Retrieval step failed:", err);
+    console.error("Retrieval RPC step failed:", err);
     const msg = err instanceof Error ? err.message : "Unknown error during retrieval";
-    return new Response(`Retrieval failed: ${msg}`, { status: 502 });
+    return new Response(`Retrieval RPC failed: ${msg}`, { status: 502 });
   }
 
   const persona = AGENT_PERSONAS[agent] ?? AGENT_PERSONAS.buddy;
