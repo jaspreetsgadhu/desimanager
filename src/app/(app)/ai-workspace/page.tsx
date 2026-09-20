@@ -2,13 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import {
-  Sparkles,
-  Briefcase,
-  Headset,
-  BarChart3,
-  ArrowLeft,
-} from "lucide-react";
+import { Sparkles, Briefcase, ArrowLeft } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -23,7 +17,7 @@ import { ChatInputBar } from "@/components/chat-input-bar";
 import { useAuth } from "@/lib/auth-context";
 import { useRagChat } from "@/hooks/use-rag-chat";
 
-type AgentKey = "buddy" | "hr" | "customer-care" | "reporter";
+type AgentKey = "buddy" | "hr";
 
 const AGENTS: {
   key: AgentKey;
@@ -58,26 +52,6 @@ const AGENTS: {
       "What's our remote work policy?",
     ],
   },
-  {
-    key: "customer-care",
-    icon: Headset,
-    title: "Customer Care AI",
-    description: "FAQs, escalation, tickets",
-    status: "Available",
-    prompts: [
-      "How do I raise a customer refund?",
-      "What's our escalation process?",
-      "Summarize the Product Manual v3",
-    ],
-  },
-  {
-    key: "reporter",
-    icon: BarChart3,
-    title: "Reporter AI",
-    description: "Usage summaries, analytics",
-    status: "Available",
-    prompts: ["Give me this week's AI usage summary"],
-  },
 ];
 
 export default function AiWorkspacePage() {
@@ -97,7 +71,7 @@ export default function AiWorkspacePage() {
           <div className="text-center">
             <h1 className="text-page-title">AI Workspace</h1>
             <p className="text-caption text-muted-foreground">
-              One workspace, four specialized AI agents — click one to chat directly with it, or ask
+              One workspace, two specialized AI agents — click one to chat directly with it, or ask
               Buddy AI and it will route you automatically.
             </p>
           </div>

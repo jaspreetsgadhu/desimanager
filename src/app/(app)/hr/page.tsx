@@ -1,6 +1,7 @@
 "use client";
 
-import { CalendarDays, HeartHandshake, Gift, Scale } from "lucide-react";
+import * as React from "react";
+import { CalendarDays, HeartHandshake, Gift, Scale, ClipboardList } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -15,8 +16,12 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChatPanel } from "@/components/chat-panel";
 import { ChatInputBar } from "@/components/chat-input-bar";
+import { LeaveApprovals } from "@/components/leave-approvals";
+import { LeaveRequestForm } from "@/components/leave-request-form";
+import { MyLeaveRequests } from "@/components/my-leave-requests";
 import { useAuth } from "@/lib/auth-context";
 import { useRagChat } from "@/hooks/use-rag-chat";
 import { HR_QUICK_INFO, HR_FAQS, COMPANY_RULES, EMPLOYEE_BENEFITS } from "@/lib/mock-data";
@@ -30,6 +35,12 @@ const HR_SUGGESTED_PROMPTS = [
 export default function HrPage() {
   const { user } = useAuth();
   const chat = useRagChat({ agent: "hr", assistantName: "HR Manager AI" });
+  const [leaveRefreshKey, setLeaveRefreshKey] = React.useState(0);
+  const canApprove = user?.role === "manager" || user?.role === "admin" || user?.role === "super_admin";
+
+  function refreshLeave() {
+    setLeaveRefreshKey((k) => k + 1);
+  }
 
   if (chat.hasConversation) {
     return (
@@ -58,7 +69,17 @@ export default function HrPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="leave" className="gap-1.5">
+            <ClipboardList className="size-4" />
+            Leave
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="flex flex-col gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="shadow-soft-sm">
           <CardContent className="flex flex-col gap-2">
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -174,6 +195,32 @@ export default function HrPage() {
           />
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="leave" className="flex flex-col gap-6">
+          {canApprove && <LeaveApprovals refreshKey={leaveRefreshKey} onReviewed={refreshLeave} />}
+
+          <Card className="shadow-soft-sm">
+            <CardHeader>
+              <CardTitle>Apply for Leave</CardTitle>
+              <CardDescription>Submit a leave request for your manager to review</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LeaveRequestForm onSubmitted={refreshLeave} />
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-soft-sm">
+            <CardHeader>
+              <CardTitle>My Leave Requests</CardTitle>
+              <CardDescription>Your leave request history</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <MyLeaveRequests refreshKey={leaveRefreshKey} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

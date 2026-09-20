@@ -4,6 +4,7 @@ export type DocumentType = "PDF" | "DOC" | "Video" | "URL";
 export type IndexStatus = "not_indexed" | "indexing" | "indexed" | "failed";
 export type ComplaintStatus = "open" | "in_progress" | "resolved";
 export type ComplaintCategory = "product_defect" | "delivery" | "billing" | "warranty" | "other";
+export type LeaveStatus = "pending" | "approved" | "rejected";
 
 export interface Database {
   public: {
@@ -158,6 +159,29 @@ export interface Database {
           description: string;
         };
         Update: Partial<Database["public"]["Tables"]["complaints"]["Row"]>;
+        Relationships: [];
+      };
+      leave_requests: {
+        Row: {
+          id: string;
+          org_id: string | null;
+          employee_id: string | null;
+          start_date: string;
+          days: number;
+          reason: string;
+          status: LeaveStatus;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["leave_requests"]["Row"]> & {
+          employee_id: string;
+          start_date: string;
+          days: number;
+          reason: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["leave_requests"]["Row"]>;
         Relationships: [];
       };
     };

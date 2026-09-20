@@ -10,8 +10,6 @@ const AGENT_PERSONAS: Record<string, string> = {
   hr: "You are HR Manager AI. You specialize in leave policy, attendance, holidays, benefits, and HR processes.",
   "customer-care":
     "You are Customer Care AI. You specialize in product FAQs, refund/return policy, escalation processes, and customer support.",
-  reporter:
-    "You are Reporter AI. You specialize in summarizing organizational usage and analytics. You do not have access to live analytics data in this conversation, so say so if asked for real-time numbers rather than inventing figures.",
 };
 
 interface ChatMessage {
