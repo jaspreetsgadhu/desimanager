@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient();
 
-  const { data: org } = await admin
+  const { data: org, error: orgError } = await admin
     .from("organizations")
     .select("id")
     .order("created_at", { ascending: true })
@@ -44,7 +44,9 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (!org) {
-    return NextResponse.json({ error: "No organization configured" }, { status: 500 });
+    console.error("Org lookup failed:", orgError);
+    const msg = orgError?.message ?? "No organization configured";
+    return NextResponse.json({ error: `Org lookup failed: ${msg}` }, { status: 500 });
   }
 
   const { data, error } = await admin

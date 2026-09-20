@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient();
 
-  const { data: org } = await admin
+  const { data: org, error: orgError } = await admin
     .from("organizations")
     .select("id")
     .order("created_at", { ascending: true })
@@ -40,7 +40,9 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (!org) {
-    return new Response("No organization configured", { status: 400 });
+    console.error("Org lookup failed:", orgError);
+    const msg = orgError?.message ?? "No organization configured";
+    return new Response(`Org lookup failed: ${msg}`, { status: 400 });
   }
 
   let relevantMatches: { document_title: string; document_category: string | null; content: string }[] =
