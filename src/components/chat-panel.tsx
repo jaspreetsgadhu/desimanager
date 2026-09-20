@@ -15,6 +15,8 @@ interface ChatPanelProps {
   onSubmit: (e: React.FormEvent) => void;
   onRegenerate: () => void;
   placeholder?: string;
+  extraActionLabel?: string;
+  onExtraAction?: (content: string) => void;
 }
 
 export function ChatPanel({
@@ -27,6 +29,8 @@ export function ChatPanel({
   onSubmit,
   onRegenerate,
   placeholder,
+  extraActionLabel,
+  onExtraAction,
 }: ChatPanelProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
@@ -45,6 +49,8 @@ export function ChatPanel({
               userName={userName}
               assistantName={assistantName}
               onRegenerate={onRegenerate}
+              extraActionLabel={extraActionLabel}
+              onExtraAction={onExtraAction}
             />
           ))}
           {streamingText !== null && (

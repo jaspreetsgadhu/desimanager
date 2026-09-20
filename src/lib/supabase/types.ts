@@ -2,6 +2,8 @@ export type UserRole = "super_admin" | "admin" | "manager" | "employee";
 export type EmployeeStatus = "active" | "invited" | "inactive";
 export type DocumentType = "PDF" | "DOC" | "Video" | "URL";
 export type IndexStatus = "not_indexed" | "indexing" | "indexed" | "failed";
+export type ComplaintStatus = "open" | "in_progress" | "resolved";
+export type ComplaintCategory = "product_defect" | "delivery" | "billing" | "warranty" | "other";
 
 export interface Database {
   public: {
@@ -135,6 +137,27 @@ export interface Database {
           embedding: number[];
         };
         Update: Partial<Database["public"]["Tables"]["document_chunks"]["Row"]>;
+        Relationships: [];
+      };
+      complaints: {
+        Row: {
+          id: string;
+          org_id: string | null;
+          customer_name: string;
+          customer_contact: string;
+          category: ComplaintCategory;
+          description: string;
+          status: ComplaintStatus;
+          priority: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["complaints"]["Row"]> & {
+          customer_name: string;
+          customer_contact: string;
+          description: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["complaints"]["Row"]>;
         Relationships: [];
       };
     };

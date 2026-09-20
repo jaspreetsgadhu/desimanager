@@ -13,38 +13,48 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/empty-state";
 import { ChatPanel } from "@/components/chat-panel";
 import { ChatInputBar } from "@/components/chat-input-bar";
 import { useAuth } from "@/lib/auth-context";
 import { useRagChat } from "@/hooks/use-rag-chat";
-import {
-  SUPPORT_TICKETS,
-  WHATSAPP_CONTACT,
-  WHATSAPP_SEED_MESSAGES,
-  type TicketStatus,
-  type TicketPriority,
-  type ChatMessage,
-} from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/client";
+import { formatRelativeTime } from "@/lib/format-relative-time";
+import { WHATSAPP_CONTACT, WHATSAPP_SEED_MESSAGES, type ChatMessage } from "@/lib/mock-data";
+import type { ComplaintStatus, ComplaintCategory } from "@/lib/supabase/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const STATUS_STYLES: Record<TicketStatus, string> = {
+const STATUS_STYLES: Record<ComplaintStatus, string> = {
   open: "bg-destructive/10 text-destructive",
-  pending: "bg-warning/10 text-warning",
+  in_progress: "bg-warning/10 text-warning",
   resolved: "bg-success/10 text-success",
 };
 
-const PRIORITY_STYLES: Record<TicketPriority, string> = {
-  high: "text-destructive",
-  medium: "text-warning",
-  low: "text-muted-foreground",
+const CATEGORY_LABELS: Record<ComplaintCategory, string> = {
+  product_defect: "Product defect",
+  delivery: "Delivery issue",
+  billing: "Billing issue",
+  warranty: "Warranty claim",
+  other: "Other",
 };
 
 const CUSTOMER_CARE_PROMPTS = [
   "How do I raise a customer refund?",
-  "Summarize ticket TCK-4521",
   "What's our escalation process?",
+  "Summarize the Product Manual v3",
 ];
+
+interface ComplaintRow {
+  id: string;
+  customer_name: string;
+  category: ComplaintCategory;
+  description: string;
+  status: ComplaintStatus;
+  priority: string;
+  updated_at: string;
+}
 
 async function fetchChatAnswer(
   agent: string,
@@ -79,6 +89,26 @@ async function fetchChatAnswer(
 export default function CustomerCarePage() {
   const { user } = useAuth();
   const chat = useRagChat({ agent: "customer-care", assistantName: "Customer Care AI" });
+  const supabase = React.useMemo(() => createClient(), []);
+  const [complaints, setComplaints] = React.useState<ComplaintRow[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    async function load() {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from("complaints")
+        .select("id, customer_name, category, description, status, priority, updated_at")
+        .order("updated_at", { ascending: false });
+      if (error) {
+        toast.error("Could not load complaints");
+      } else {
+        setComplaints(data ?? []);
+      }
+      setIsLoading(false);
+    }
+    load();
+  }, [supabase]);
 
   if (chat.hasConversation) {
     return (
@@ -103,7 +133,7 @@ export default function CustomerCarePage() {
       <div>
         <h1 className="text-page-title">Customer Care</h1>
         <p className="text-caption text-muted-foreground">
-          Product FAQs, escalation handling, and ticket summaries.
+          Product FAQs, escalation handling, and customer complaints.
         </p>
       </div>
 
@@ -122,40 +152,55 @@ export default function CustomerCarePage() {
         <TabsContent value="chat" className="flex flex-col gap-6">
           <Card className="shadow-soft-sm">
             <CardHeader>
-              <CardTitle>Support Tickets</CardTitle>
-              <CardDescription>Recent customer tickets and their status</CardDescription>
+              <CardTitle>Customer Complaints</CardTitle>
+              <CardDescription>Complaints submitted by customers through the portal</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
-              {SUPPORT_TICKETS.map((ticket) => (
-                <div
-                  key={ticket.id}
-                  className="flex flex-col gap-2 rounded-[var(--radius-lg)] border border-border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium">{ticket.subject}</span>
-                    <span className="text-caption text-muted-foreground">
-                      {ticket.id} · {ticket.customer} · {ticket.updated}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={cn("text-small-label font-medium", PRIORITY_STYLES[ticket.priority])}>
-                      {ticket.priority}
-                    </span>
-                    <Badge variant="secondary" className={STATUS_STYLES[ticket.status]}>
-                      {ticket.status}
-                    </Badge>
-                    {ticket.status !== "resolved" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => toast.info(`${ticket.id} escalated to team lead (demo only)`)}
-                      >
-                        Escalate
-                      </Button>
-                    )}
-                  </div>
+              {isLoading ? (
+                <div className="flex flex-col gap-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-14 w-full rounded-[var(--radius-lg)]" />
+                  ))}
                 </div>
-              ))}
+              ) : complaints.length === 0 ? (
+                <EmptyState
+                  icon={Headset}
+                  title="No complaints yet"
+                  description="Complaints submitted by customers through the portal will show up here."
+                />
+              ) : (
+                complaints.map((complaint) => (
+                  <div
+                    key={complaint.id}
+                    className="flex flex-col gap-2 rounded-[var(--radius-lg)] border border-border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium">{complaint.description}</span>
+                      <span className="text-caption text-muted-foreground">
+                        {complaint.customer_name} · {CATEGORY_LABELS[complaint.category]} ·{" "}
+                        {formatRelativeTime(complaint.updated_at)}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-small-label font-medium text-muted-foreground">
+                        {complaint.priority}
+                      </span>
+                      <Badge variant="secondary" className={STATUS_STYLES[complaint.status]}>
+                        {complaint.status.replace("_", " ")}
+                      </Badge>
+                      {complaint.status !== "resolved" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toast.info("Escalation not implemented in demo")}
+                        >
+                          Escalate
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
 
@@ -165,7 +210,7 @@ export default function CustomerCarePage() {
                 <Headset className="size-4" />
                 Ask Customer Care AI
               </CardTitle>
-              <CardDescription>Get instant answers about FAQs, refunds, and tickets</CardDescription>
+              <CardDescription>Get instant answers about FAQs, refunds, and policies</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               <div className="flex flex-wrap gap-2">

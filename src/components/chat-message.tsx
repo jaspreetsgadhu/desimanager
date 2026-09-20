@@ -24,6 +24,8 @@ interface ChatMessageProps {
   assistantName?: string;
   isStreaming?: boolean;
   onRegenerate?: () => void;
+  extraActionLabel?: string;
+  onExtraAction?: (content: string) => void;
 }
 
 export function ChatMessage({
@@ -32,6 +34,8 @@ export function ChatMessage({
   assistantName = "Buddy AI",
   isStreaming,
   onRegenerate,
+  extraActionLabel,
+  onExtraAction,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const { speak } = useVoice();
@@ -74,6 +78,18 @@ export function ChatMessage({
                 {citation.title}
               </Badge>
             ))}
+          </div>
+        )}
+
+        {!isUser && !isStreaming && onExtraAction && (
+          <div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onExtraAction(message.content)}
+            >
+              {extraActionLabel ?? "Use this"}
+            </Button>
           </div>
         )}
 

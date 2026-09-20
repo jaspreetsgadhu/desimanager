@@ -12,9 +12,10 @@ function nextId() {
 interface UseRagChatOptions {
   agent: string;
   assistantName: string;
+  endpoint?: string;
 }
 
-export function useRagChat({ agent, assistantName }: UseRagChatOptions) {
+export function useRagChat({ agent, assistantName, endpoint = "/api/chat" }: UseRagChatOptions) {
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [input, setInput] = React.useState("");
   const [streamingText, setStreamingText] = React.useState<string | null>(null);
@@ -30,7 +31,7 @@ export function useRagChat({ agent, assistantName }: UseRagChatOptions) {
     }));
 
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ agent, message: question, history }),

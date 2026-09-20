@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import {
   Sparkles,
   Briefcase,
-  GraduationCap,
   Headset,
   BarChart3,
   ArrowLeft,
@@ -24,7 +23,7 @@ import { ChatInputBar } from "@/components/chat-input-bar";
 import { useAuth } from "@/lib/auth-context";
 import { useRagChat } from "@/hooks/use-rag-chat";
 
-type AgentKey = "buddy" | "hr" | "training" | "customer-care" | "reporter";
+type AgentKey = "buddy" | "hr" | "customer-care" | "reporter";
 
 const AGENTS: {
   key: AgentKey;
@@ -57,17 +56,6 @@ const AGENTS: {
       "How many leave days do I have left?",
       "When is the next public holiday?",
       "What's our remote work policy?",
-    ],
-  },
-  {
-    key: "training",
-    icon: GraduationCap,
-    title: "Training Manager AI",
-    description: "SOPs, quizzes, certificates",
-    status: "Available",
-    prompts: [
-      "What training modules do I have left?",
-      "How does the certification quiz work?",
     ],
   },
   {
@@ -109,7 +97,7 @@ export default function AiWorkspacePage() {
           <div className="text-center">
             <h1 className="text-page-title">AI Workspace</h1>
             <p className="text-caption text-muted-foreground">
-              One workspace, five specialized AI agents — click one to chat directly with it, or ask
+              One workspace, four specialized AI agents — click one to chat directly with it, or ask
               Buddy AI and it will route you automatically.
             </p>
           </div>

@@ -1,17 +1,18 @@
 export const runtime = "nodejs";
 
 import type { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getOpenAI, EMBEDDING_MODEL, CHAT_MODEL } from "@/lib/openai";
 
-const AGENT_PERSONAS: Record<string, string> = {
-  buddy:
-    "You are Buddy AI, the friendly central AI assistant for the company. You answer questions on any topic covered in the knowledge base, spanning HR, training, customer care, and general company topics.",
-  hr: "You are HR Manager AI. You specialize in leave policy, attendance, holidays, benefits, and HR processes.",
-  "customer-care":
-    "You are Customer Care AI. You specialize in product FAQs, refund/return policy, escalation processes, and customer support.",
-  reporter:
-    "You are Reporter AI. You specialize in summarizing organizational usage and analytics. You do not have access to live analytics data in this conversation, so say so if asked for real-time numbers rather than inventing figures.",
+// Unauthenticated customer-facing chat. Customers have no Supabase session, so
+// this route uses the service-role admin client for both org resolution and
+// retrieval instead of the per-user client the employee /api/chat route uses.
+// Only ever expose customer-safe personas here — never buddy/hr/reporter.
+const CUSTOMER_AGENT_PERSONAS: Record<string, string> = {
+  "install-help":
+    "You are Product Installation Help AI. You help customers install and set up products they have purchased, using the company's installation guides and manuals. Be clear, patient, and step-by-step. If asked about anything unrelated to installation or setup, politely suggest they use Submit a Complaint instead.",
+  complaint:
+    "You are Complaint Assistant AI. You help a customer clearly describe a problem they are having with a product or order, so they can submit an accurate complaint. Ask brief clarifying questions if needed (what product, when it happened, what went wrong). Once you have enough detail, respond with ONLY the draft complaint description itself — 2-4 plain sentences, first person, no heading, no label like 'Here is a draft', no quotation marks, no closing remarks like 'feel free to use this' — because your entire reply gets copied directly into the complaint form. You do not resolve complaints, issue refunds, or make promises on the company's behalf — you only help them articulate the issue.",
 };
 
 interface ChatMessage {
@@ -21,7 +22,7 @@ interface ChatMessage {
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
-  const agent = typeof body?.agent === "string" ? body.agent : "buddy";
+  const agent = typeof body?.agent === "string" ? body.agent : "install-help";
   const message = typeof body?.message === "string" ? body.message.trim() : "";
   const history: ChatMessage[] = Array.isArray(body?.history) ? body.history : [];
 
@@ -29,22 +30,17 @@ export async function POST(request: NextRequest) {
     return new Response("Message is required", { status: 400 });
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  const admin = createAdminClient();
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("org_id")
-    .eq("id", user.id)
+  const { data: org } = await admin
+    .from("organizations")
+    .select("id")
+    .order("created_at", { ascending: true })
+    .limit(1)
     .single();
 
-  if (!profile?.org_id) {
-    return new Response("No organization found for this user", { status: 400 });
+  if (!org) {
+    return new Response("No organization configured", { status: 400 });
   }
 
   let relevantMatches: { document_title: string; document_category: string | null; content: string }[] =
@@ -60,15 +56,14 @@ export async function POST(request: NextRequest) {
     queryEmbedding = embeddingRes.data[0].embedding;
   } catch (err) {
     console.error("Embeddings call failed:", err);
-    const keyLen = process.env.OPENAI_API_KEY?.length ?? 0;
     const msg = err instanceof Error ? err.message : "Unknown error";
-    return new Response(`Embeddings failed (OPENAI_API_KEY length=${keyLen}): ${msg}`, { status: 502 });
+    return new Response(`Embeddings failed: ${msg}`, { status: 502 });
   }
 
   try {
-    const { data: matches, error: rpcError } = await supabase.rpc("match_document_chunks", {
+    const { data: matches, error: rpcError } = await admin.rpc("match_document_chunks", {
       query_embedding: queryEmbedding,
-      match_org_id: profile.org_id,
+      match_org_id: org.id,
       match_count: 6,
     });
 
@@ -88,10 +83,10 @@ export async function POST(request: NextRequest) {
     return new Response(`Retrieval RPC failed: ${msg}`, { status: 502 });
   }
 
-  const persona = AGENT_PERSONAS[agent] ?? AGENT_PERSONAS.buddy;
+  const persona = CUSTOMER_AGENT_PERSONAS[agent] ?? CUSTOMER_AGENT_PERSONAS["install-help"];
   const systemPrompt = `${persona}
 
-Answer the employee's question using ONLY the context below, drawn from the company's knowledge base. If the context does not contain the answer, say you don't have that information in the knowledge base yet — do not make something up. Keep answers concise (2-4 sentences unless more detail is clearly needed). Reference source documents naturally by name when relevant.
+Answer the customer's question using ONLY the context below, drawn from the company's knowledge base. If the context does not contain the answer, say you don't have that information yet — do not make something up. Keep answers concise (2-4 sentences unless more detail is clearly needed). Reference source documents naturally by name when relevant.
 
 Context:
 ${contextBlock}`;
