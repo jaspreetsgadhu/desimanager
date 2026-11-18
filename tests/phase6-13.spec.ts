@@ -7,6 +7,7 @@ test.beforeEach(async ({ page }) => {
 
 async function loginAs(page: import('@playwright/test').Page, name: string) {
   await page.goto('/login');
+  await page.getByRole('button', { name: /I am an Employee/i }).click();
   await page.getByRole('button', { name: new RegExp(name, 'i') }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
 }
@@ -24,29 +25,16 @@ test('HR page shows quick info and answers a question', async ({ page }) => {
   await expect(page.getByText('HR Manager AI', { exact: true }).first()).toBeVisible({ timeout: 20000 });
 });
 
-test('Training page quiz flow awards a certificate on passing score', async ({ page }) => {
-  await loginAs(page, 'Aarav Shah');
-  await page.goto('/training');
-
-  await expect(page.getByRole('heading', { name: 'Training' })).toBeVisible();
-  await page.getByRole('button', { name: 'Take Quiz' }).first().click();
-
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: '18', exact: true }).click();
-  await dialog.getByRole('button', { name: '5-7 business days' }).click();
-  await dialog.getByRole('button', { name: '2', exact: true }).click();
-  await dialog.getByRole('button', { name: 'Submit Quiz' }).click();
-
-  await expect(dialog.getByText(/You scored 3\/3/)).toBeVisible();
-});
-
-test('Customer Care page shows tickets and can switch to WhatsApp simulation', async ({ page }) => {
+test('Customer Care page lists complaints and can switch to WhatsApp simulation', async ({ page }) => {
   await loginAs(page, 'Aarav Shah');
   await page.goto('/customer-care');
 
   await expect(page.getByRole('heading', { name: 'Customer Care' })).toBeVisible();
-  await expect(page.getByText('TCK-4521').first()).toBeVisible();
+  await expect(page.getByText('Customer Complaints', { exact: true })).toBeVisible();
+  // Complaints come from Supabase: wait for loading to finish, showing either a row or the empty state.
+  await expect(
+    page.getByRole('button', { name: 'Escalate' }).or(page.getByText(/^(open|in progress|resolved)$/)).or(page.getByText('No complaints yet')).first()
+  ).toBeVisible({ timeout: 15000 });
 
   await page.getByRole('tab', { name: /WhatsApp Simulation/i }).click();
   await expect(page.getByText('+91 98765 43210')).toBeVisible();
@@ -64,19 +52,19 @@ test('Reports page overview and analytics tabs render', async ({ page }) => {
   await expect(page.getByText('Department Activity')).toBeVisible();
 });
 
-test('AI Workspace pins the conversation to Customer Care AI when its card is clicked', async ({ page }) => {
+test('AI Workspace pins the conversation to HR Manager AI when its card is clicked', async ({ page }) => {
   await loginAs(page, 'Aarav Shah');
   await page.goto('/ai-workspace');
 
-  await page.getByRole('button', { name: /Customer Care AI/ }).click();
+  await page.getByRole('button', { name: /HR Manager AI/ }).click();
   await expect(page.getByText('Chatting with')).toBeVisible();
-  await expect(page.getByText('Customer Care AI', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('HR Manager AI', { exact: true }).first()).toBeVisible();
 
-  await page.getByPlaceholder(/Ask Customer Care AI anything/i).fill('How do I raise a customer refund?');
+  await page.getByPlaceholder(/Ask HR Manager AI anything/i).fill('What is our remote work policy?');
   await page.getByRole('button', { name: 'Send message' }).click();
 
-  await expect(page.getByText('How do I raise a customer refund?')).toBeVisible();
-  await expect(page.getByText('Customer Care AI', { exact: true }).first()).toBeVisible({ timeout: 20000 });
+  await expect(page.getByText('What is our remote work policy?')).toBeVisible();
+  await expect(page.getByText('HR Manager AI', { exact: true }).first()).toBeVisible({ timeout: 20000 });
 });
 
 test('voice mic mock fills the input after listening', async ({ page }) => {

@@ -40,18 +40,51 @@ interface VoiceContextValue {
 
 const VoiceContext = React.createContext<VoiceContextValue | undefined>(undefined);
 
+// The saved language lives in localStorage; read it with useSyncExternalStore
+// so it is picked up after hydration without a setState-in-effect.
+const languageListeners = new Set<() => void>();
+
+function subscribeLanguage(onChange: () => void) {
+  languageListeners.add(onChange);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEY) onChange();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    languageListeners.delete(onChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function getLanguageSnapshot(): VoiceLanguage {
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored && stored in VOICE_LANGUAGE_LABELS) return stored as VoiceLanguage;
+  } catch {
+    // Storage unavailable (e.g. blocked); fall back to the default.
+  }
+  return "en";
+}
+
+function getLanguageServerSnapshot(): VoiceLanguage {
+  return "en";
+}
+
 export function VoiceProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = React.useState<VoiceLanguage>("en");
+  const language = React.useSyncExternalStore(
+    subscribeLanguage,
+    getLanguageSnapshot,
+    getLanguageServerSnapshot
+  );
   const [isListening, setIsListening] = React.useState(false);
 
-  React.useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY) as VoiceLanguage | null;
-    if (stored && stored in VOICE_LANGUAGE_LABELS) setLanguageState(stored);
-  }, []);
-
   const setLanguage = React.useCallback((lang: VoiceLanguage) => {
-    setLanguageState(lang);
-    window.localStorage.setItem(STORAGE_KEY, lang);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, lang);
+    } catch {
+      // Ignore storage failures; listeners still re-read the snapshot.
+    }
+    languageListeners.forEach((listener) => listener());
   }, []);
 
   const startListening = React.useCallback(
