@@ -32,15 +32,23 @@ const THEME_OPTIONS = [
   { value: "system", label: "System", icon: Laptop },
 ];
 
+function noopSubscribe() {
+  return () => {};
+}
+
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { user, switchUser } = useAuth();
   const { language, setLanguage } = useVoice();
-  const [mounted, setMounted] = React.useState(false);
+  // False during server render and hydration, true afterwards, so the theme
+  // highlight doesn't cause a hydration mismatch.
+  const mounted = React.useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false
+  );
   const [notifyEmail, setNotifyEmail] = React.useState(true);
   const [notifyPush, setNotifyPush] = React.useState(true);
-
-  React.useEffect(() => setMounted(true), []);
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
