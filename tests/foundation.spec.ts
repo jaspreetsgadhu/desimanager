@@ -7,6 +7,7 @@ test.beforeEach(async ({ page }) => {
 
 test('login with a demo account redirects to dashboard', async ({ page }) => {
   await page.goto('/login');
+  await page.getByRole('button', { name: /I am an Employee/i }).click();
   await page.getByRole('button', { name: /Priya Nair/i }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
   await expect(page.getByRole('heading', { name: /Welcome back, Priya/i })).toBeVisible();
@@ -14,6 +15,7 @@ test('login with a demo account redirects to dashboard', async ({ page }) => {
 
 test('dashboard renders KPI widgets and quick actions', async ({ page }) => {
   await page.goto('/login');
+  await page.getByRole('button', { name: /I am an Employee/i }).click();
   await page.getByRole('button', { name: /Aarav Shah/i }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
 
@@ -25,6 +27,7 @@ test('dashboard renders KPI widgets and quick actions', async ({ page }) => {
 
 test('employee role hides Employees and Reports nav items', async ({ page }) => {
   await page.goto('/login');
+  await page.getByRole('button', { name: /I am an Employee/i }).click();
   await page.getByRole('button', { name: /Simran Kaur/i }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
 
@@ -36,6 +39,7 @@ test('employee role hides Employees and Reports nav items', async ({ page }) => 
 
 test('super admin role sees Employees and Reports nav items', async ({ page }) => {
   await page.goto('/login');
+  await page.getByRole('button', { name: /I am an Employee/i }).click();
   await page.getByRole('button', { name: /Aarav Shah/i }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
 
@@ -46,6 +50,7 @@ test('super admin role sees Employees and Reports nav items', async ({ page }) =
 
 test('settings page toggles dark mode', async ({ page }) => {
   await page.goto('/login');
+  await page.getByRole('button', { name: /I am an Employee/i }).click();
   await page.getByRole('button', { name: /Aarav Shah/i }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
   await page.goto('/settings');

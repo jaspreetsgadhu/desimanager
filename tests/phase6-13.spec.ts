@@ -7,6 +7,7 @@ test.beforeEach(async ({ page }) => {
 
 async function loginAs(page: import('@playwright/test').Page, name: string) {
   await page.goto('/login');
+  await page.getByRole('button', { name: /I am an Employee/i }).click();
   await page.getByRole('button', { name: new RegExp(name, 'i') }).click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
 }
